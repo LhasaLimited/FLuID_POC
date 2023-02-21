@@ -1,0 +1,21 @@
+
+name: cronos3
+channels:
+  - tmap
+  - rdkit
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.8
+  - rdkit
+  - tmap
+  - scikit-learn
+  - imbalanced-learn
+  - xgboost
+  - tqdm
+  - plotly
+  - ipywidgets
+  - pip
+  - pip:
+    - faerun
+    - mhfp
