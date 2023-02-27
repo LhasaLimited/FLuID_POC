@@ -4,13 +4,17 @@
 """
 import os
 import random
+import time
 from os import path
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
 from matplotlib._cm_listed import cmaps
+import matplotlib.pyplot as plt
+from plotly.graph_objs import *
 from plotly.subplots import make_subplots
+import seaborn as sns
 
 from rdkit import DataStructs, Chem
 from rdkit.Chem import PandasTools, AllChem
@@ -37,8 +41,23 @@ from tqdm import tqdm_notebook as tqdm
 
 pd.options.mode.chained_assignment = None  # default='warn'
 
+"""
+   Displays Plotly plots 
+---
+  plot : the plot to show
+  renderer : the renderer to use
+  pause : if true makes a pause to avoid Ploty's image numbering bug
+"""
 
-
+def showPlot(plot, renderer=None, pause=False):
+    if renderer == None : 
+        plot.show() 
+    else :
+        plot.show(renderer = renderer)
+        
+    # plotly figure numbering workaround
+    if(pause) : time.sleep(1)
+    
 """
     Computes the fingerprint for a given molecule
 ---
@@ -62,7 +81,7 @@ def compute_fp_array(molecule):
 
 def create_classifier(algorithm):
     if algorithm == 'rf':
-        return RandomForestClassifier(n_estimators=150, max_depth=15, class_weight='balanced')
+        return RandomForestClassifier(n_estimators=150, max_depth=15, class_weight='balanced', random_state=0)
     elif algorithm == 'nb':
         return GaussianNB()
     elif algorithm == 'svm':
@@ -100,27 +119,26 @@ def get_algorithms():
          data : the data to use to train classifier
 """
 
-def create_trained_classifier(algorithm, data):
+def create_trained_classifier(algorithm, data, balance=True):
     X = np.asarray([fp for fp in data.FP])
     Y = np.asarray([c for c in data.CLASS])
 
-    # RUS
-    #rus = RandomUnderSampler(random_state=0)
-    #X_resampled, Y_resampled = rus.fit_resample(X, Y)
-
-    # ROS
-    #ros = RandomOverSampler(random_state=0)
-    #X_resampled, Y_resampled = ros.fit_resample(X, Y)
-
-    # SMOTE
-    #X_resampled, Y_resampled = SMOTE().fit_resample(X, Y)
-
-    # No oversampling
-    X_resampled, Y_resampled = X,Y
-
-    #print("Original=" + str(sorted(Counter(Y).items())))
-    #print("Resampled=" + str(sorted(Counter(Y_resampled).items())))
-
+   
+    if balance :
+        # RUS
+        rus = RandomUnderSampler(random_state=0)
+        X_resampled, Y_resampled = rus.fit_resample(X, Y)
+        # ROS
+        #ros = RandomOverSampler(random_state=0)
+        #X_resampled, Y_resampled = ros.fit_resample(X, Y)
+        # SMOTE
+        #X_resampled, Y_resampled = SMOTE().fit_resample(X, Y)
+    else :
+        #No balancing
+        X_resampled, Y_resampled = X,Y
+        
+    
+    print("Classifier building Balanced=" + str(balance) + " data size " + str(len(data)) + " sample size : " + str(len(X_resampled)))
     classifier = create_classifier(algorithm)
     classifier.fit(X_resampled, Y_resampled)
     return classifier
@@ -338,7 +356,7 @@ def load_training_data(params, force=True):
 
 """
 
-def load_test_data(params, force=True):
+def load_test_data(training_data, params, force=True):
     pickleFile = os.path.join("data", params['test_data_file'] + ".pkl")
 
     # use pre-converted pickle file if force = false
@@ -450,10 +468,12 @@ def sample_data(training_full, test_full, transfer_full, params):
 def display_distribution(data, names, title):
     fig = px.pie(data, names=names, hole=.2,
                  color_discrete_sequence=px.colors.qualitative.G10,
-                 title=title)
+                title=title)
     fig.update_layout(width=500, height=500)
-    fig.show()
-
+    
+    fig = px.histogram(data, x='ACTIVITY', width=600,
+                    height=400,title=title)
+    showPlot(fig)
 
 """
     Clusters a data space into k subspaces
@@ -513,7 +533,7 @@ def cluster_data_space(data_space, name, prefix, k, smooth_factor, params):
               for category in data_space['ACTIVITY'].unique()])
     fig.update_layout(barmode='stack', width=800, height=600, title="Teacher distribution", title_x=0.5,
                       font=params['figure_font'])
-    fig.show()
+    showPlot(fig)
 
     return cluster_data
 
@@ -547,7 +567,7 @@ def project_tsne(datasets, tag, title, params):
 
     fig.update_layout(width=700, height=600, title_text=title, font=params['figure_font'], title_x=0.5)
     fig.update_traces(marker=dict(size=10))
-    fig.show()
+    showPlot(fig)
 
 
 """
@@ -572,9 +592,16 @@ def project_teacher_cluster_space(teacher_space, params):
 
     fig = px.scatter(data, x="TSNE1", y="TSNE2", color='TAG', color_discrete_sequence=px.colors.qualitative.G10,
                      opacity=0.75)
-    fig.update_layout(width=700, height=600, title_text="t-SNE 2D teacher projection", font=params['figure_font'], title_x=0.5)
-    fig.update_traces(marker=dict(size=10))
-    fig.show()
+
+    font = dict(family="Arial",size=14,color="black")
+    
+    fig.update_layout(width=700, height=600, title_text="Teacher space", font=font, title_x=0.5,
+                     paper_bgcolor='white', plot_bgcolor='white', legend_title_text='Teachers')
+    fig.update_traces(marker=dict(size=10))    
+    fig.update_xaxes(showgrid=False, showticklabels=False, zeroline=False)
+    fig.update_yaxes(showgrid=False, showticklabels=False, zeroline=False)
+    
+    showPlot(fig)
 
 """
     Plot a t-SNE projection of a given teacher activity pace
@@ -595,11 +622,20 @@ def project_teacher_activity_space(teacher_space, params):
     x = pd.DataFrame(x)
     x.columns = ['TSNE1', 'TSNE2']
 
-    fig = px.scatter(data, x="TSNE1", y="TSNE2", color='ACTIVITY', color_discrete_sequence=px.colors.qualitative.G10,
+    #colors=['deepskyblue','#3365b5']
+    colors=['deepskyblue','red']
+    fig = px.scatter(data, x="TSNE1", y="TSNE2", color='ACTIVITY', color_discrete_sequence=colors,
                     opacity=0.75)
-    fig.update_layout(width=700, height=600, title_text="t-SNE 2D activity projection", font=params['figure_font'], title_x=0.5)
+    
+
+    font = dict(family="Arial",size=14,color="black")
+    fig.update_layout(width=700, height=600, title_text="Teachers activity", font=font, title_x=0.5,
+                     paper_bgcolor='white', plot_bgcolor='white', legend_title_text='Activity')
+    fig.update_traces(marker=dict(size=10))    
+    fig.update_xaxes(showgrid=False, showticklabels=False, zeroline=False)
+    fig.update_yaxes(showgrid=False, showticklabels=False, zeroline=False)
     fig.update_traces(marker=dict(size=10))
-    fig.show()
+    showPlot(fig)
 
 """
     Plot a t-SNE projection of a given set of data 
@@ -630,7 +666,7 @@ def plot_data_space(datasets, params):
     fig2.update_layout(width=700, height=600, title_text="t-SNE 2D Global space projection", font=params['figure_font'],
                        title_x=0.5)
     fig2.update_traces(marker=dict(size=10))
-    fig2.show()
+    showPlot(fig2)
 
 """
     Plot a t-SNE projection of a given transfer space
@@ -642,8 +678,9 @@ def plot_data_space(datasets, params):
 """
 
 def plot_transfer_space(training_data, test_data, transfer_data, params):
-    spaceSize = min(len(transfer_data.index), 30000)
-    space = pd.concat([transfer_data.sample(spaceSize, random_state=params['random_state']), training_data, test_data])
+    #training_data['ROLE'] = training_data['CLUSTER_ID']
+    spaceSize = min(len(transfer_data.index), 50000)
+    space = pd.concat([training_data, test_data, transfer_data.sample(spaceSize, random_state=params['random_state'])])
     data = space.sample(n=params['tsne_size'], random_state=params['random_state'])
     model = TSNE(n_components=2, random_state=42, n_iter=params['tsne_iterations'])
     X = np.asarray([fp for fp in data.FP])
@@ -655,13 +692,17 @@ def plot_transfer_space(training_data, test_data, transfer_data, params):
     x = pd.DataFrame(x)
     x.columns = ['TSNE1', 'TSNE2']
 
-    fig2 = px.scatter(data, x="TSNE1", y="TSNE2", color='ROLE', color_discrete_sequence=px.colors.qualitative.G10,
+    colors=['DarkOrchid','DodgerBlue','DeepPink']
+    fig = px.scatter(data, x="TSNE1", y="TSNE2", color='ROLE', color_discrete_sequence= colors,
                       opacity=0.75)
-    fig2.update_layout(width=700, height=600, title_text="t-SNE 2D Global space projection", font=params['figure_font'],
-                       title_x=0.5)
-    fig2.update_traces(marker=dict(size=10))
-    fig2.show()
-
+        
+    font = dict(family="Arial",size=14,color="black")
+    fig.update_layout(width=700, height=600, title_text="Data space", font=font, title_x=0.5,
+                     paper_bgcolor='white', plot_bgcolor='white', legend_title_text='Activity')   
+    fig.update_xaxes(showgrid=False, showticklabels=False, zeroline=False)
+    fig.update_yaxes(showgrid=False, showticklabels=False, zeroline=False)
+    fig.update_traces(marker=dict(size=10))
+    showPlot(fig)
 
 """
     Build the teacher models given teacher data
@@ -701,7 +742,7 @@ def cross_validate_teachers(teacher_data, params):
         fig.update_layout(title="Teachers internal 5x cross-validation (algo: " + algorithm + " mode:" + params['student_mode'] + ")", title_x=0.5,
                         font=params['figure_font'])
         fig.update_yaxes(range=[0, 1])
-        fig.show()
+        showPlot(fig)
 
         display(teacher_cv_table)
     else : print("Skipped use details > 2 to run this section ")
@@ -721,8 +762,7 @@ def validate_teachers(teacher_models, test_data, params):
     # For each teacher add a validation row
     for t in tqdm(range(0, params['k'] + 1)):
         classifier = teacher_models[t][0]
-        teacher_ev_table = add_classifier_validation(teacher_ev_table, classifier, test_data, 'T' + str(t),
-                                                 teacher_models[t][1])
+        teacher_ev_table = add_classifier_validation(teacher_ev_table, classifier, test_data, 'T-' + str(t), teacher_models[t][1])
 
     display(teacher_ev_table)
 
@@ -732,7 +772,7 @@ def validate_teachers(teacher_models, test_data, params):
     fig.update_layout(title="Teachers validation (algo: " + params['teacher_algorithm'] + " mode:" + params['student_mode'] + ")",
                       title_x=0.5, font=params['figure_font'])
     fig.update_yaxes(range=[0, 1])
-    fig.show()
+    showPlot(fig, pause=True)
 
     # Compute the mean teacher performance
     # skip first teacher (T0 = whole training set)
@@ -908,7 +948,7 @@ def federate_teacher_annotations(federated_data, params):
     fig = px.pie(contributions, values='Contribution', names='Teacher', hole=.2,
                  color_discrete_sequence=px.colors.qualitative.G10,
                  title='Contributions for federation mode :' + params['federated_student'])
-    fig.show()
+    showPlot(fig)
     add_class_to_student_data(federated_data,params['federated_student'])
     display(federated_data.shape)
     return federated_data
@@ -937,7 +977,7 @@ def plot_annotation_distributions(data, width, height, params):
                       title="Activity distribution for individual and federated students",
                       title_x=0.5, font=params['figure_font'])
     fig.update_traces(opacity=0.5)
-    fig.show()
+    showPlot(fig)
 
 
 """
@@ -1008,7 +1048,7 @@ def plot_confidence_distributions(data, width, height,  params):
                         title="Decidability distribution for federated students",
                         title_x=0.5, font=params['figure_font'])
         fig.update_traces(opacity=0.5)
-        fig.show()
+        showPlot(fig)
     else : print("Skipped use details > 1 to run this section ")
 
 """
@@ -1282,7 +1322,7 @@ def benchmark(federated_data, teacher_models, test_data, params):
                           params['student_size']) + " data)",
                       title_x=0.5, font=params['figure_font'])
     fig.update_yaxes(range=[0, 0.75])
-    fig.show()
+    showPlot(fig)
 
     return student_validation_table, teacher_validation_table, hybrid_data_list, hybrid_models
 
@@ -1331,7 +1371,7 @@ def plot_distribution_set(datasets, params):
               for category in data['ACTIVITY'].unique()])
     fig.update_layout(barmode='stack', width=450, height=400, title="Data distribution", title_x=0.5,
                       font=params['figure_font'])
-    fig.show()
+    showPlot(fig)
 
 
 
@@ -1372,6 +1412,8 @@ def cross_domain_validate(teacher_models, federated_data, test_data, params):
         # validate the full student
         loto_table = add_classifier_validation(loto_table, student_model, test_data, federated_student, student_size)
 
+        print("'Running Leave One Teacher Out' and 'Domain Adapatation' experiments")
+        
         # use each teacher data as a target domain in turn
         for teacher in tqdm(all_teachers):
             single_table = create_validation_table()
@@ -1446,26 +1488,19 @@ def cross_domain_validate(teacher_models, federated_data, test_data, params):
             #fig.update_layout(title="Domain validation for domain D" + str(teacher) + " (algo: " + " mode:" + params['student_mode'] + student_algorithm + ")",
             #                title_x=0.5, font=params['figure_font'])
             #fig.update_yaxes(range=[0, 1])
-            #fig.show()
+            #showPlot(fig)
 
+        display(loto_table)
+        
         # Plot the student external validation performances
         fig = px.bar(loto_table, x='Model', y='MCC', color='MCC', width=1200, height=600,
                     color_continuous_scale=params['figure_color_scale'], range_color=[0, 1])
         fig.update_layout(title="Leave one teacher out validation (algo: " + student_algorithm + " mode:" + params['student_mode'] + ")",
                         title_x=0.5, font=params['figure_font'])
         fig.update_yaxes(range=[0, 1])
-        fig.show()
+        showPlot(fig, pause=True)
 
         domain_table = domain_table.sort_values('MCC', ascending=False)
-        # display(domain_table)
-
-        # Plot the student domain cross-validation performances
-        #fig = px.bar(domain_table, x='Model', y='MCC', color='MCC', width=1200, height=600,
-        #             color_continuous_scale=params['figure_color_scale'], range_color=[0, 1])
-        #fig.update_layout(title="Domain Adaptation Summary (algo: " + student_algorithm + " mode:" + params['student_mode'] + ")",
-        #                  title_x=0.5, font=params['figure_font'])
-        #fig.show(renderer="colab")
-
         domain_average_table = create_validation_table()
 
         for model in domain_table['Model'].unique():
@@ -1479,7 +1514,7 @@ def cross_domain_validate(teacher_models, federated_data, test_data, params):
                     color_continuous_scale=params['figure_color_scale'], range_color=[0, 1])
         fig.update_layout(title="Domain Adaptation summary (algo: " + student_algorithm + " mode:" + params['student_mode'] + ")",
                         title_x=0.5, font=params['figure_font'])
-        fig.show()
+        showPlot(fig)
     else : print("Skipped use details > 2 to run this section ")
 
 """
@@ -1530,7 +1565,7 @@ def benchmark_teacher_count(label_table, teacher_validation_table, test_data, pa
             title="Incremental Federated Student (" + str(size) + " data) with algo: " + algorithm + " mode:" + params['student_mode'] ,
             title_x=0.5, font=params['figure_font'])
         fig.update_yaxes(range=[0, 1])
-        fig.show()
+        showPlot(fig)
     else : print("Skipped use details > 1 to run this section ")
 
 """
@@ -1543,8 +1578,15 @@ def benchmark_teacher_count(label_table, teacher_validation_table, test_data, pa
 
 """
 def benchmark_student_size(label_table, training_data, test_data, params): 
+    sizes = params['student_sizes']
+    student = params['federated_student']
+    mode = params['student_mode']
+    algorithm=params['student_algorithm']
+    return benchmark_student_size_custom(label_table, training_data, test_data, sizes , student , mode, algorithm, params)                                         
+    
+def benchmark_student_size_custom(label_table, training_data, test_data, sizes, student, mode, algorithm, params): 
     if params['details'] > 1 :
-        sizes = params['student_sizes']
+        
         student_size_table = create_validation_table()
         student_size_table['TAG'] = 'None'
 
@@ -1558,8 +1600,15 @@ def benchmark_student_size(label_table, training_data, test_data, params):
             if(size < len(label_table)):
                 replicate_table = create_validation_table()
 
-                for replicate in range(params['replicate_count']):
-                    classifier = create_student_model(label_table,  params['federated_student'], size,  params['student_mode'], params['student_algorithm'], params)
+                for replicate in range(10*params['replicate_count']):
+                    
+                    table = label_table.sample(frac=1) # free shuffling (no seed)
+                    actives = table[table['C-' + student] == 'Active'].head(int(size / 2))
+                    inactives = table[table['C-' + student] == 'Inactive'].head(int(size / 2))
+                    data = pd.concat([actives, inactives])
+                    
+                    classifier = create_trained_classifier(params['student_algorithm'], data)
+                    #classifier = create_student_model(label_table,  student, size,  mode, algorithm, params)
                     replicate_table = add_classifier_validation(replicate_table, classifier, test_data, 'S-' + str(size), size)
 
                 student_size_table = add_replicate_table_row(student_size_table, replicate_table, 'S-' + str(size))
@@ -1575,8 +1624,15 @@ def benchmark_student_size(label_table, training_data, test_data, params):
             if(size < len(training_data)):
                 replicate_table = create_validation_table()
                 
-                for replicate in range(params['replicate_count']):
-                    classifier = create_trained_classifier(params['student_algorithm'], training_data.sample(size))
+                for replicate in range(10*params['replicate_count']):
+                                    
+                    # sample random balanced
+                    table = training_data.sample(frac=1) # free shuffling (no seed)
+                    actives = table[table['ACTIVITY'] == 'Active'].head(int(size / 2))
+                    inactives = table[table['ACTIVITY'] == 'Inactive'].head(int(size / 2))
+                    data = pd.concat([actives, inactives])
+                    
+                    classifier = create_trained_classifier(params['student_algorithm'], data)
                     replicate_table = add_classifier_validation(replicate_table, classifier, test_data, 'T-' + str(size), size)
 
                 student_size_table = add_replicate_table_row(student_size_table, replicate_table, 'T-' + str(size))
@@ -1591,7 +1647,7 @@ def benchmark_student_size(label_table, training_data, test_data, params):
             title="Student Size Impact (algo: " + params['student_algorithm'] + " mode:" + params['student_mode'] + ')',
             title_x=0.5, font=params['figure_font'])
         fig.update_yaxes(range=[0, 1])
-        fig.show()
+        showPlot(fig, pause=True)
 
         # plot as line plot (without errors)
         fig = px.line(student_size_table, x='Size', y='MCC', line_shape='spline', color='TAG', width=600, height=400)
@@ -1599,7 +1655,9 @@ def benchmark_student_size(label_table, training_data, test_data, params):
             title="Size Impact (algo: " + params['student_algorithm'] + " mode:" + params['student_mode'] + ')',
             title_x=0.5, font=params['figure_font'])
         fig.update_yaxes(range=[0, 1])
-        fig.show()
+        showPlot(fig)
+        
+        return student_size_table
     else : print("Skipped use details > 1 to run this section ")
     
     
