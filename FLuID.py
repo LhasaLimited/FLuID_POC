@@ -1,6 +1,6 @@
 """
-    Cronos library
-    This is the main python library for the Cronos proof of concept project
+    FLuID library
+    This is the main python library for the FLuID proof of concept project
 """
 import os
 import random
@@ -389,7 +389,7 @@ def load_test_data(training_data, params, force=True):
 
 
 """
-    Loads the Cronos transfer data
+    Loads the FLuID transfer data
 ---
       test_data_file : the file to load
       training_data : the training data (used to remove duplicates)
@@ -794,7 +794,7 @@ def validate_teachers(teacher_models, test_data, params):
 """
     Ccreate the a new federated data initial table
 ---
-     data : the Cronos dataset containinghte molecules and their fingerprint
+     data : the FLuID dataset containinghte molecules and their fingerprint
 """
 
 def create_federated_data(data):
@@ -809,19 +809,19 @@ def create_federated_data(data):
 """
     Annotate the transfer data with the teacher models
 ---
-            data : the Cronos dataset containinghte molecules and their fingerprint
+            data : the FLuID dataset containinghte molecules and their fingerprint
 """
 def annotate_transfer_data(transfer_data, teacher_models, teacher_data, params, force=False):
-    pickleFile = os.path.join("data", params['cronos_label_file'] + ".pkl")
+    pickleFile = os.path.join("data", params['fluid_label_file'] + ".pkl")
     k = params['k']
 
     # If we do not force to re-annotate the data then use the savec pickle file
     # otherwise annotate the transfer date using the teacher models
     if not force and path.exists(pickleFile):
         federated_data = pd.read_pickle(pickleFile)
-        print("From pickle Cronos label table shape = " + str(federated_data.shape))
+        print("From pickle FLuID label table shape = " + str(federated_data.shape))
     else:
-        print("Labelling the Cronos data...")
+        print("Labelling the FLuID data...")
 
         # here we annotate directly the transfer_data (no copy)
         federated_data = transfer_data
@@ -886,7 +886,7 @@ def annotate_transfer_data(transfer_data, teacher_models, teacher_data, params, 
         # save to pickle format for future reuse
         federated_data.to_pickle(pickleFile)
 
-        print("Cronos label table shape : " + str(federated_data.shape))
+        print("FLuID label table shape : " + str(federated_data.shape))
 
     return federated_data
 
@@ -1241,7 +1241,7 @@ def create_benchmark_table(federated_data, size, mode, test_data, params):
 
 
 """
-    Main Cronos benchmark 
+    Main FLuID benchmark 
 ---
  federated_data: the validation table to append
            size: the number of instances to select
