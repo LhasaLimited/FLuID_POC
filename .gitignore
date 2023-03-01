@@ -1,3 +1,7 @@
+#ignore for FLuID
+**/*.pkl
+/data/FLuID_full.sdf
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
