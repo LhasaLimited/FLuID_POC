@@ -1,5 +1,6 @@
 #ignore for FLuID
 **/*.pkl
+**/*.html
 /data/FLuID_full.sdf
 
 # Byte-compiled / optimized / DLL files
