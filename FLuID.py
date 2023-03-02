@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 from plotly.graph_objs import *
 from plotly.subplots import make_subplots
 import seaborn as sns
+import zipfile
 
 from rdkit import DataStructs, Chem
 from rdkit.Chem import PandasTools, AllChem
@@ -400,14 +401,14 @@ def load_test_data(training_data, params, force=True):
 def load_transfer_data(params, force=True):
     file = params['transfer_data_file']
     pickleFile = os.path.join("data", file + ".pkl")
-
+    sdFile = os.path.join("data", file + ".sdf")
+    zipFile = os.path.join("data", file + ".zip")
     # use pre-converted pickle file if force = false
     # else reconvert the training data from the SDF file
     if not force and path.exists(pickleFile):
         data = pd.read_pickle(pickleFile)
         print("From pickle transfer data size = " + str(data.shape[0]))
-    else:
-        sdFile = os.path.join("data", file + ".sdf")
+    elif path.exists(sdFile):
         data = PandasTools.LoadSDF(sdFile, molColName='MOLECULE')
         data['INCHI'] = [Chem.inchi.InchiToInchiKey(Chem.inchi.MolToInchi(mol)) for mol in data.MOLECULE]
         data['FP'] = data['MOLECULE'].apply(compute_fp_array)
@@ -415,6 +416,18 @@ def load_transfer_data(params, force=True):
         data['ROLE'] = 'Transfer'
         data.to_pickle(pickleFile)
         print("From SDF transfer data size = " + str(data.shape[0]))
+    elif path.exists(zipFile):
+        print("Extracting zip")
+        archive = zipfile.ZipFile(zipFile)
+        archive.extract("FLuID_full.sdf", "data")
+        print("Extracted zip loading sdf")
+        data = PandasTools.LoadSDF(sdFile, molColName='MOLECULE')
+        data['INCHI'] = [Chem.inchi.InchiToInchiKey(Chem.inchi.MolToInchi(mol)) for mol in data.MOLECULE]
+        data['FP'] = data['MOLECULE'].apply(compute_fp_array)
+        data['SOURCE'] = file
+        data['ROLE'] = 'Transfer'
+        data.to_pickle(pickleFile)
+        print("From ZIP transfer data size = " + str(data.shape[0]))
     return data
 
 
@@ -1664,19 +1677,19 @@ def benchmark_student_size_custom(label_table, training_data, test_data, sizes, 
 # AD Stuff below this line ==============================================================================================
 
 def ADbenchmark(teacher_data, hybrid_data, teacher_models, hybrid_models, test_data, radius = 2):
-    print("Gathering Feature Dictionaries")
-    print("teacher")
+    #print("Gathering Feature Dictionaries")
+    #print("teacher")
     teacherFD = ADCalculateFD(teacher_data, radius)
-    print("hybrid")
+    #print("hybrid")
     hybridFD = ADCalculateFD(hybrid_data, radius)
     
-    print("Appending AD information to table")
+    #print("Appending AD information to table")
     ADAppendDomainColumn(test_data, teacherFD, "Domain_T", radius)
     ADAppendDomainColumn(test_data, hybridFD, "Domain_H", radius)
     
-    print("Predicting teacher models")
+    #print("Predicting teacher models")
     ADAppendPredictionColumn(test_data, teacher_models, "Predicted_T")
-    print("Predicting hybrid models")
+    #print("Predicting hybrid models")
     ADappendHybridPredictionColumn(test_data, hybrid_models, "Predicted_H")
     
     for mdl in hybrid_models:
