@@ -342,7 +342,7 @@ def load_training_data(params, force=True):
         # Remove internal duplicates
         print("From SDF training data size = " + str(data.shape[0]))
         data.drop_duplicates(subset='INCHI', keep='first', inplace=True)
-        print("   -After removing dupplicates size = " + str(data.shape[0]))
+        print("   -After removing duplicates size = " + str(data.shape[0]))
         data.to_pickle(pickleFile)
 
     return data
@@ -380,7 +380,7 @@ def load_test_data(training_data, params, force=True):
         # Remove internal duplicates
         print("From SDF test data size = " + str(data.shape[0]))
         data.drop_duplicates(subset='INCHI', keep='first', inplace=True)
-        print("   -After removing dupplicates size = " + str(data.shape[0]))
+        print("   -After removing duplicates size = " + str(data.shape[0]))
 
         # Remove overlap with training data
         data = data[~data.INCHI.isin(training_data.INCHI)].dropna()
@@ -1692,8 +1692,8 @@ def ADbenchmark(teacher_data, hybrid_data, teacher_models, hybrid_models, test_d
     #print("Predicting hybrid models")
     ADappendHybridPredictionColumn(test_data, hybrid_models, "Predicted_H")
     
-    for mdl in hybrid_models:
-        print(mdl[2])
+    #for mdl in hybrid_models:
+     #   print(mdl[2])
     
     print("count of compounds brought into domain")
     domain_validate_test = []
@@ -1774,7 +1774,7 @@ takes in the test_data and a list of FeatureDictionaries and appends domain colu
 def ADAppendDomainColumn(test_data, featureDict, colPrefix, radius = 2):
     for i in range(0, len(featureDict)):
         colname = colPrefix + str(i)
-        print(colname)
+        #print(colname)
         test_data[colname] = test_data['MOLECULE'].apply(lambda mol: ADMolecule(mol, featureDict[i], radius))
     
 
@@ -1793,7 +1793,7 @@ def ADAppendPredictionColumn(test_data, model_list, colPrefix):
     for i in range(0, len(model_list)):
         X = np.asarray([fp for fp in test_data.FP])
         colname = colPrefix + str(i)
-        print(colname)
+        #print(colname)
         test_data[colname] = model_list[i][0].predict(X)
         
 
@@ -1801,7 +1801,7 @@ def ADappendHybridPredictionColumn(test_data, model_list, colPrefix):
     for i in range(0, len(model_list)):
         X = np.asarray([fp for fp in test_data.FP])
         colname = colPrefix + str(i)
-        print(colname)
+        #print(colname)
         test_data[colname] = model_list[i].predict(X)          
 '''
 Takes in the list of teachers 0 ... k and returns the FeatureDictionary for them also as a list 0 ... k
