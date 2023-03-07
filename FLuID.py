@@ -728,7 +728,7 @@ def build_teacher_models(teacher_data, params):
     teacher_models = []
 
     for t in tqdm(range(0, params['k'] + 1)):
-        classifier = create_trained_classifier(params['teacher_algorithm'], teacher_data[t])
+        classifier = create_trained_classifier(params['teacher_algorithm'], teacher_data[t], False)
         teacher_models.append((classifier, len(teacher_data[t]), teacher_data[t]))
     return teacher_models
 
