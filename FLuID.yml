@@ -1,5 +1,5 @@
 
-name: cronos3
+name: fluidenv
 channels:
   - tmap
   - rdkit
