@@ -14,7 +14,6 @@ from matplotlib._cm_listed import cmaps
 import matplotlib.pyplot as plt
 from plotly.graph_objs import *
 from plotly.subplots import make_subplots
-import seaborn as sns
 import zipfile
 
 from rdkit import DataStructs, Chem
