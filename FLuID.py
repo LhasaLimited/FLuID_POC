@@ -320,7 +320,8 @@ def cap(data, limit=500):
 
 def load_training_data(params, force=True):
     training_data_file = params['training_data_file']
-    pickleFile = os.path.join("data", training_data_file + ".pkl")
+    endpoint = params['endpoint']
+    pickleFile = os.path.join("data", endpoint, training_data_file + ".pkl")
 
     # use pre-converted pickle file if force = false
     # else reconvert the training data from the SDF file
@@ -328,7 +329,7 @@ def load_training_data(params, force=True):
         data = pd.read_pickle(pickleFile)
         print("From pickle training data size = " + str(data.shape[0]))
     else:
-        sdFile = os.path.join("data", training_data_file + ".sdf")
+        sdFile = os.path.join("data", endpoint, training_data_file + ".sdf")
         data = PandasTools.LoadSDF(sdFile, molColName='MOLECULE')
         data['INCHI'] = [Chem.inchi.InchiToInchiKey(Chem.inchi.MolToInchi(mol)) for mol in data.MOLECULE]
         data.rename({'Lhasa Chembl Call': 'ACTIVITY'}, axis=1, inplace=True)
@@ -357,7 +358,8 @@ def load_training_data(params, force=True):
 """
 
 def load_test_data(training_data, params, force=True):
-    pickleFile = os.path.join("data", params['test_data_file'] + ".pkl")
+    endpoint = params['endpoint']
+    pickleFile = os.path.join("data",endpoint, params['test_data_file'] + ".pkl")
 
     # use pre-converted pickle file if force = false
     # else reconvert the training data from the SDF file
@@ -365,7 +367,7 @@ def load_test_data(training_data, params, force=True):
         data = pd.read_pickle(pickleFile)
         print("From pickle test data size = " + str(data.shape[0]))
     else:
-        sdFile = os.path.join("data", params['test_data_file'] + ".sdf")
+        sdFile = os.path.join("data",endpoint, params['test_data_file'] + ".sdf")
         data = PandasTools.LoadSDF(sdFile, molColName='MOLECULE')
         data['INCHI'] = [Chem.inchi.InchiToInchiKey(Chem.inchi.MolToInchi(mol)) for mol in data.MOLECULE]
         data.rename({'Overall Conservative Call': 'ACTIVITY'}, axis=1, inplace=True)
