@@ -36,12 +36,12 @@ The FluID dependencies are found in the yml file.
 ```
 git clone https://github.com/LhasaLimited/FLuID_POC
 ```
-Switch to the release branch FLuID_paper.
+Switch to the release tag Nature_MI_v1.0.
 
 Install the requirements from the .yml file.
 
 Typical Install time is less than 5 minutes, assuming you have a working python environment.
 
 ## Running
-Open the Jupyter notebook and then execute. A seed has been set to control for reproducability, but the results will not be completely identical due to uncontrollable randomness in learning algorithms.
+Open the Jupyter notebook in Jupyter lab (we used v7.0.8 but any suitable version should work) and then execute. A seed has been set to control for reproducability, but the results will not be completely identical due to uncontrollable randomness in learning algorithms.
 Typical runtime on a normal computer is approximately half an hour.
